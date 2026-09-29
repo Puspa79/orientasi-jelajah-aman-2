@@ -1,5 +1,5 @@
 // src/app/(tabs)/index.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react"; // Tambahkan useRef di sini
 import { View, Text, ActivityIndicator, Button } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchBox from "../../components/SearchBox";
@@ -17,6 +17,12 @@ export default function HalamanUtama() {
   // NO 2: Mengubah nilai delay debounce dari 500 menjadi 800
   const teksTertunda = useDebounce(teksCari, 800);
 
+  // =========================================================================
+  // TAHAP 7 POIN 1: Siapkan penanda permintaan menggunakan useRef
+  // Nomor urut permintaan yang bertahan antar-render tanpa memicu render ulang
+  // =========================================================================
+  const requestIdRef = useRef(0);
+
   useEffect(() => {
     if (teksTertunda.trim().length === 0) {
       setHasil([]);
@@ -27,15 +33,21 @@ export default function HalamanUtama() {
   }, [teksTertunda]);
 
   async function ambilData(nama: string) {
+    const idSaatIni = ++requestIdRef.current;
+
     setSedangMemuat(true);
     setPesanError(null);
     try {
       const data = await cariKota(nama);
+      if (idSaatIni !== requestIdRef.current) return;
       setHasil(data);
     } catch (err) {
+      if (idSaatIni !== requestIdRef.current) return;
       setPesanError("Gagal mengambil data. Periksa koneksi internet Anda.");
     } finally {
-      setSedangMemuat(false);
+      if (idSaatIni === requestIdRef.current) {
+        setSedangMemuat(false);
+      }
     }
   }
 
