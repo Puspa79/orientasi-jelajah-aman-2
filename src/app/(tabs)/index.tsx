@@ -76,11 +76,18 @@ tingkatAQI={konversiTingkatAQI(kualitasUdara.indeksAQI)}
 indeksAQI={kualitasUdara.indeksAQI}
 />
 )}
-{cuaca && (
-<Text style={{ fontSize: 12, color: "#888" }}>
-Kondisi: {labelKodeCuaca(cuaca.saatIni.kodeCuaca)} • Angin
-{cuaca.saatIni.kecepatanAngin} km/j
-</Text>
+{cuaca?.harian && (
+  <View style={{ marginTop: 8, paddingHorizontal: 4 }}>
+    <Text style={{ fontSize: 14, color: '#4b5563' }}>
+      Suhu Hari Ini: Min {cuaca.harian.suhuMinimal[0]}°C | Max {cuaca.harian.suhuMaksimal[0]}°C
+    </Text>
+  </View>
+)}
+
+{kualitasUdara && (
+  <Text style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', marginBottom: 4 }}>
+    Polutan: PM2.5: {kualitasUdara.pm25} µg/m³ | PM10: {kualitasUdara.pm10} µg/m³
+  </Text>
 )}
 <AtribusiCuaca />
 </SafeAreaView>
