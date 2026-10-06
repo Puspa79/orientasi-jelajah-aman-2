@@ -1,5 +1,6 @@
 // src/app/(tabs)/index.tsx
 import { useState, useEffect, useRef } from "react";
+import { router } from "expo-router";
 import { mintaIzinLokasi, ambilKoordinatSaatIni } from "../../services/locationService";
 import { View, Text, ActivityIndicator, Button, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -93,12 +94,27 @@ onPress={() => kotaTerpilih && pilihKota(kotaTerpilih)}
 </View>
 )}
 {cuaca && kualitasUdara && kotaTerpilih && !sedangMemuat && (
+<>
 <WeatherCard
 kota={kotaTerpilih.name}
 suhu={cuaca.saatIni.suhu}
 tingkatAQI={konversiTingkatAQI(kualitasUdara.indeksAQI)}
-indeksAQI={kualitasUdara.indeksAQI}
 />
+<Button
+title="Tambahkan ke Favorit"
+onPress={() =>
+router.push({
+pathname: "/tambah-favorit",
+params: {
+id: String(kotaTerpilih.id),
+nama: kotaTerpilih.name,
+lat: String(kotaTerpilih.latitude),
+lon: String(kotaTerpilih.longitude),
+},
+})
+}
+/>
+</>
 )}
 {cuaca?.harian && (
   <View style={{ marginTop: 8, paddingHorizontal: 4 }}>
