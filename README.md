@@ -1,56 +1,25 @@
-# Welcome to your Expo app 👋
+# Jelajah Aman - Aplikasi Informasi Cuaca & Kualitas Udara
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplikasi *mobile* berbasis React Native dan Expo untuk memantau informasi cuaca serta kualitas udara berbasis lokasi dan pencarian kota dengan pendekatan *Offline-First*.
 
-## Get started
+---
 
-1. Install dependencies
+## ⛅ Penjelasan Status Data Cuaca
 
-   ```bash
-   npm install
-   ```
+Aplikasi ini menerapkan strategi *Offline-First* menggunakan SQLite untuk menyimpan riwayat pencarian data cuaca. Berikut adalah penjelasan mengenai status data cuaca yang ditampilkan kepada pengguna:
 
-2. Start the app
+* **Cache Segar**: Data dibaca langsung dari SQLite lokal karena usianya masih di bawah 30 menit (di bawah batas TTL / *Time To Live*). Aplikasi tidak perlu melakukan permintaan jaringan baru ke API.
+* **Cache Basi**: Data lokal digunakan sebagai cadangan darurat saat koneksi internet terputus, meskipun usia data sudah melebihi 30 menit.
+* **First-run Offline**: Kondisi di mana internet terputus dan aplikasi belum memiliki riwayat simpanan data sama sekali untuk kota tersebut. Aplikasi akan menampilkan pesan peringatan dan opsi untuk mencoba lagi.
 
-   ```bash
-   npx expo start
-   ```
+> **Transparansi Informasi**: Label status ini sangat penting untuk transparansi informasi keakuratan data kepada pengguna, sehingga pengguna dapat mengetahui apakah data cuaca yang mereka lihat merupakan data paling terkini atau data cadangan dari penyimpanan lokal.
 
-In the output, you'll find options to open the app in a
+---
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 🛠️ Fitur Utama
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- **Pencarian Kota Hybrid**: Dukungan pencarian online (Open-Meteo API) serta pencarian offline dari dataset lokal dan daftar favorit.
+- **SQLite Offline-First Caching**: Penyimpanan data cuaca dan indeks kualitas udara secara otomatis di database lokal.
+- **Manajemen Favorit**: Menyimpan daftar kota favorit menggunakan `AsyncStorage`.
+- **Deteksi Lokasi GPS**: Mengambil data cuaca berdasarkan koordinat lokasi perangkat pengguna saat ini.
+- **Pembaruan Skema Migrasi (v2)**: Pengelolaan versi database SQLite berbasis `PRAGMA user_version`.
