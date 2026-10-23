@@ -1,26 +1,38 @@
 // src/types/cache.ts
 import { DataCuacaLengkap, DataKualitasUdara } from "./weather";
-// Dari mana data yang sedang tampil berasal
+
 export type SumberData = "jaringan" | "cache-segar" | "cache-basi";
-// Identitas lokasi yang disimpan bersama cache
+
 export interface KotaUntukCache {
-id: number;
-nama: string;
-latitude: number;
-longitude: number;
+  id?: number;
+  nama: string;
+  latitude: number;
+  longitude: number;
 }
-// Isi satu baris cache setelah dibaca dari SQLite
+
 export interface DataTersimpan {
-cuaca: DataCuacaLengkap;
-kualitasUdara: DataKualitasUdara;
-disimpanPada: number; // epoch milidetik
+  kotaId?: number;
+  namaKota?: string;
+  latitude?: number;
+  longitude?: number;
+  cuaca: DataCuacaLengkap | any;
+  kualitasUdara: DataKualitasUdara | any;
+  disimpanPada: number;
 }
-// Hasil akhir yang dipakai layar
+
+export interface CacheCuaca extends DataTersimpan {}
+
 export interface HasilCuacaOffline extends DataTersimpan {
-sumber: SumberData;
+  sumber: SumberData;
 }
-// Ringkasan untuk daftar "Tersimpan di perangkat"
-export interface RingkasanKotaTersimpan extends KotaUntukCache {
-kunci: string;
-disimpanPada: number;
+
+export interface RingkasanKotaTersimpan {
+  id: number;
+  kota_id?: number;
+  nama: string;
+  nama_kota?: string;
+  latitude: number;
+  longitude: number;
+  kunci: string;
+  disimpanPada: number;
 }
