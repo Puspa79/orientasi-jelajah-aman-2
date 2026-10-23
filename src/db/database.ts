@@ -1,4 +1,4 @@
-// src/db/database.ts
+// src/db/database.native.ts
 import * as SQLite from "expo-sqlite";
 
 const NAMA_DATABASE = "jelajah-aman.db";
@@ -6,11 +6,10 @@ const VERSI_DATABASE = 2;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-// Satu pintu untuk seluruh aplikasi: database dibuka dan dimigrasi SEKALI saja
 export function ambilDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
     dbPromise = bukaDanMigrasi().catch((err) => {
-      dbPromise = null; // izinkan percobaan ulang jika gagal
+      dbPromise = null;
       throw err;
     });
   }
