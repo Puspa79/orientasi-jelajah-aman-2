@@ -33,6 +33,7 @@ import { konversiTingkatAQI } from "../../services/weatherAdapter";
 import { labelKodeCuaca } from "../../constants/weatherCodes";
 import { HasilGeocoding } from "../../types/geocoding";
 import { HasilCuacaOffline, RingkasanKotaTersimpan } from "../../types/cache";
+import { simpanRiwayat } from "../../services/riwayatStorage";
 
 export default function HalamanUtama() {
   const { colors } = useTheme();
@@ -79,6 +80,9 @@ export default function HalamanUtama() {
 
   async function pilihKota(kota: HasilGeocoding, paksaPerbarui = false) {
     setKotaTerpilih(kota);
+    setHasilPencarian([]);
+    setTeksCari("");
+
     const idSaatIni = ++requestIdRef.current;
     setSedangMemuat(true);
     setPesanError(null);
@@ -94,12 +98,22 @@ export default function HalamanUtama() {
       );
       if (idSaatIni !== requestIdRef.current) return;
       setHasil(data);
+
+      await simpanRiwayat({
+        id: kota.id,
+        nama: kota.name,
+        latitude: kota.latitude,
+        longitude: kota.longitude,
+      });
+
       muatKotaTersimpan();
     } catch (err) {
+      console.error(">>> ERROR FETCH CUACA:", err);
+
       if (idSaatIni !== requestIdRef.current) return;
       setHasil(null);
       setPesanError(
-        "Belum ada data tersimpan dan tidak ada koneksi internet. Sambungkan internet lalu coba lagi."
+        "Kota ini belum memiliki data tersimpan di perangkat. Sambungkan ke internet terlebih dahulu untuk membuka kota baru."
       );
     } finally {
       if (idSaatIni === requestIdRef.current) setSedangMemuat(false);
@@ -177,29 +191,33 @@ export default function HalamanUtama() {
             <Text style={{ fontWeight: "bold", color: colors.text }}>
               Tersimpan di perangkat (bisa dibuka offline)
             </Text>
-            {kotaTersimpan.map((k) => (
-              <TouchableOpacity
-                key={k.kunci}
-                style={{
-                  padding: 10,
-                  backgroundColor: colors.card,
-                  borderRadius: 6,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                }}
-                onPress={() =>
-                  pilihKota({
-                    id: k.id,
-                    name: k.nama,
-                    latitude: k.latitude,
-                    longitude: k.longitude,
-                    country: "",
-                  })
-                }
-              >
-                <Text style={{ color: colors.text }}>{k.nama}</Text>
-              </TouchableOpacity>
-            ))}
+            {kotaTersimpan.map((k: any) => {
+              const idKota = k.id ?? k.kota_id;
+              const namaKota = k.nama ?? k.nama_kota;
+              return (
+                <TouchableOpacity
+                  key={k.kunci ?? idKota}
+                  style={{
+                    padding: 10,
+                    backgroundColor: colors.card,
+                    borderRadius: 6,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                  onPress={() =>
+                    pilihKota({
+                      id: Number(idKota),
+                      name: String(namaKota),
+                      latitude: Number(k.latitude),
+                      longitude: Number(k.longitude),
+                      country: "",
+                    })
+                  }
+                >
+                  <Text style={{ color: colors.text }}>{namaKota}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
         {sedangMemuat && <ActivityIndicator color={colors.primary} />}
@@ -220,12 +238,15 @@ export default function HalamanUtama() {
             />
             <WeatherCard
               kota={kotaTerpilih.name}
-              suhu={hasil.cuaca.saatIni.suhu}
-              tingkatAQI={konversiTingkatAQI(hasil.kualitasUdara.indeksAQI)}
+              suhu={hasil.cuaca?.saatIni?.suhu ?? 0}
+              tingkatAQI={konversiTingkatAQI(
+                hasil.kualitasUdara?.indeksAQI ?? 0
+              )}
             />
             <Text style={{ fontSize: 12, color: colors.subtext }}>
-              Kondisi: {labelKodeCuaca(hasil.cuaca.saatIni.kodeCuaca)} {"\u2022"}{" "}
-              Angin {hasil.cuaca.saatIni.kecepatanAngin} km/j
+              Kondisi:{" "}
+              {labelKodeCuaca(hasil.cuaca?.saatIni?.kodeCuaca ?? 0)}{" "}
+              {"\u2022"} Angin {hasil.cuaca?.saatIni?.kecepatanAngin ?? 0} km/j
             </Text>
             <Button
               title="Perbarui Sekarang"
