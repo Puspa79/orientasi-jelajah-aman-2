@@ -13,20 +13,32 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
-import { ambilSemuaFavorit, hapusFavorit } from "../../services/favoritStorage";
-import { daftarKotaTersimpan, hapusCacheKota } from "../../services/cacheRepository";
+import {
+  ambilSemuaFavorit,
+  hapusFavorit,
+  hapusSemuaFavorit,
+} from "../../services/favoritStorage";
+import {
+  ambilRiwayat,
+  ItemRiwayat,
+  hapusSemuaRiwayat,
+  hapusSatuRiwayat,
+} from "../../services/riwayatStorage";
+import {
+  hapusCacheKota,
+  bersihkanSemuaCache,
+} from "../../services/cacheRepository";
 import { KotaFavorit } from "../../types/favorit";
-import { RingkasanKotaTersimpan } from "../../types/cache";
 
 export default function TabRiwayat() {
   const { colors } = useTheme();
   const [daftarFavorit, setDaftarFavorit] = useState<KotaFavorit[]>([]);
-  const [daftarRiwayat, setDaftarRiwayat] = useState<RingkasanKotaTersimpan[]>([]);
+  const [daftarRiwayat, setDaftarRiwayat] = useState<ItemRiwayat[]>([]);
   const router = useRouter();
 
   const muatData = async () => {
     const favorit = await ambilSemuaFavorit();
-    const riwayat = await daftarKotaTersimpan();
+    const riwayat = await ambilRiwayat();
     setDaftarFavorit(favorit);
     setDaftarRiwayat(riwayat);
   };
@@ -53,21 +65,67 @@ export default function TabRiwayat() {
     }
   }
 
-  async function hapusCache(kunci: string) {
-    await hapusCacheKota(kunci);
+  async function bersihkanFavorit() {
+    await hapusSemuaFavorit();
     muatData();
   }
 
-  function konfirmasiHapusCache(kunci: string, nama: string) {
+  function konfirmasiHapusSemuaFavorit() {
     if (Platform.OS === "web") {
-      if (window.confirm(`Yakin hapus cache cuaca ${nama}?`)) hapusCache(kunci);
+      if (window.confirm("Yakin ingin menghapus seluruh kota favorit?"))
+        bersihkanFavorit();
     } else {
       Alert.alert(
-        "Konfirmasi Hapus Cache",
-        `Apakah Anda yakin ingin menghapus data cache cuaca untuk ${nama}?`,
+        "Hapus Semua Favorit",
+        "Apakah Anda yakin ingin menghapus seluruh kota favorit?",
         [
           { text: "Batal", style: "cancel" },
-          { text: "Hapus", style: "destructive", onPress: () => hapusCache(kunci) },
+          { text: "Hapus Semua", style: "destructive", onPress: bersihkanFavorit },
+        ]
+      );
+    }
+  }
+
+  async function hapusRiw(id: number, nama: string) {
+    await hapusSatuRiwayat(id);
+    await hapusCacheKota(String(id));
+    await hapusCacheKota(nama);
+    muatData();
+  }
+
+  function konfirmasiHapusRiwayatItem(id: number, nama: string) {
+    if (Platform.OS === "web") {
+      if (window.confirm(`Yakin hapus ${nama} dari riwayat pencarian?`))
+        hapusRiw(id, nama);
+    } else {
+      Alert.alert(
+        "Konfirmasi Hapus",
+        `Yakin hapus ${nama} dari riwayat pencarian?`,
+        [
+          { text: "Batal", style: "cancel" },
+          { text: "Hapus", style: "destructive", onPress: () => hapusRiw(id, nama) },
+        ]
+      );
+    }
+  }
+
+  async function bersihkanRiwayat() {
+    await hapusSemuaRiwayat();
+    await bersihkanSemuaCache();
+    muatData();
+  }
+
+  function konfirmasiHapusSemuaRiwayat() {
+    if (Platform.OS === "web") {
+      if (window.confirm("Yakin ingin menghapus seluruh riwayat pencarian?"))
+        bersihkanRiwayat();
+    } else {
+      Alert.alert(
+        "Hapus Riwayat",
+        "Apakah Anda yakin ingin menghapus seluruh riwayat pencarian?",
+        [
+          { text: "Batal", style: "cancel" },
+          { text: "Hapus Semua", style: "destructive", onPress: bersihkanRiwayat },
         ]
       );
     }
@@ -88,11 +146,19 @@ export default function TabRiwayat() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={{ gap: 20 }}>
-        {/* Riwayat Pencarian */}
         <View style={styles.section}>
-          <Text style={[styles.judul, { color: colors.text }]}>
-            Riwayat Pencarian (Cache Offline)
-          </Text>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <Text style={[styles.judul, { color: colors.text }]}>
+              Riwayat Pencarian
+            </Text>
+            {daftarRiwayat.length > 0 && (
+              <TouchableOpacity onPress={konfirmasiHapusSemuaRiwayat}>
+                <Text style={{ color: "#ef4444", fontSize: 13, fontWeight: "600" }}>
+                  Hapus Semua
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <Text style={[styles.subjudul, { color: colors.subtext }]}>
             Maksimal 10 pencarian terakhir
           </Text>
@@ -104,7 +170,7 @@ export default function TabRiwayat() {
           ) : (
             daftarRiwayat.map((item) => (
               <View
-                key={item.kunci}
+                key={`${item.id}-${item.disimpanPada}`}
                 style={[
                   styles.card,
                   { backgroundColor: colors.card, borderColor: colors.border },
@@ -121,7 +187,7 @@ export default function TabRiwayat() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => konfirmasiHapusCache(item.kunci, item.nama)}
+                  onPress={() => konfirmasiHapusRiwayatItem(item.id, item.nama)}
                   style={{ padding: 4 }}
                 >
                   <Ionicons name="trash-outline" size={20} color="#ef4444" />
@@ -131,11 +197,19 @@ export default function TabRiwayat() {
           )}
         </View>
 
-        {/* Kota Favorit */}
         <View style={styles.section}>
-          <Text style={[styles.judul, { color: colors.text }]}>
-            Kota Favorit ({daftarFavorit.length})
-          </Text>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <Text style={[styles.judul, { color: colors.text }]}>
+              Kota Favorit ({daftarFavorit.length})
+            </Text>
+            {daftarFavorit.length > 0 && (
+              <TouchableOpacity onPress={konfirmasiHapusSemuaFavorit}>
+                <Text style={{ color: "#ef4444", fontSize: 13, fontWeight: "600" }}>
+                  Hapus Semua
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {daftarFavorit.length === 0 ? (
             <Text style={{ color: colors.subtext, fontStyle: "italic" }}>
