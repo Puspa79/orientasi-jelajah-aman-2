@@ -1,94 +1,139 @@
 // src/services/cacheRepository.ts
 import { ambilDatabase } from "../db/database";
-import { DataCuacaLengkap, DataKualitasUdara } from "../types/weather";
 import {
-DataTersimpan,
-KotaUntukCache,
-RingkasanKotaTersimpan,
+  RingkasanKotaTersimpan,
+  CacheCuaca,
+  KotaUntukCache,
 } from "../types/cache";
-interface BarisCache {
-kunci: string;
-kota_id: number;
-nama_kota: string;
-latitude: number;
-longitude: number;
-cuaca_json: string;
-aqi_json: string;
-disimpan_pada: number;
-}
-type BarisRingkasan = Omit<BarisCache, "cuaca_json" | "aqi_json">;
-// Koordinat dibulatkan 2 desimal (~1,1 km) agar GPS yang bergeser sedikit
-// tetap memakai cache yang sama
-export function buatKunci(latitude: number, longitude: number): string {
-return latitude.toFixed(2) + "," + longitude.toFixed(2);
-}
+
+export const BATAS_CACHE_MS = 24 * 60 * 60 * 1000;
+
 export async function simpanCache(
-kota: KotaUntukCache,
-cuaca: DataCuacaLengkap,
-kualitasUdara: DataKualitasUdara
+  kota: KotaUntukCache,
+  cuaca: any,
+  kualitasUdara: any
 ): Promise<void> {
-const db = await ambilDatabase();
-await db.runAsync(
-`INSERT OR REPLACE INTO cache_cuaca
-(kunci, kota_id, nama_kota, latitude, longitude, cuaca_json, aqi_json, disimpan_pada)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-[
-buatKunci(kota.latitude, kota.longitude),
-kota.id,
-kota.nama,
-kota.latitude,
-kota.longitude,
-JSON.stringify(cuaca),
-JSON.stringify(kualitasUdara),
-Date.now(),
-]
-);
-}
-export async function ambilCache(
-latitude: number,
-longitude: number
-): Promise<DataTersimpan | null> {
-const db = await ambilDatabase();
-const baris = await db.getFirstAsync<BarisCache>(
-"SELECT * FROM cache_cuaca WHERE kunci = ?",
-[buatKunci(latitude, longitude)]
-);
-if (!baris) return null;
-return {
-cuaca: JSON.parse(baris.cuaca_json) as DataCuacaLengkap,
-kualitasUdara: JSON.parse(baris.aqi_json) as DataKualitasUdara,
-disimpanPada: baris.disimpan_pada,
-};
-}
-export async function daftarKotaTersimpan(): Promise<RingkasanKotaTersimpan[]> {
-const db = await ambilDatabase();
-const semua = await db.getAllAsync<BarisRingkasan>(
-`SELECT kunci, kota_id, nama_kota, latitude, longitude, disimpan_pada
-FROM cache_cuaca ORDER BY disimpan_pada DESC LIMIT 10`
-);
-return semua.map((b) => ({
-kunci: b.kunci,
-id: b.kota_id,
-nama: b.nama_kota,
-latitude: b.latitude,
-longitude: b.longitude,
-disimpanPada: b.disimpan_pada,
-}));
-}
-// Invalidation otomatis: buang cache yang lebih tua dari batas umur
-export async function bersihkanCacheLama(batasUmurMs: number): Promise<void> {
-const db = await ambilDatabase();
-await db.runAsync("DELETE FROM cache_cuaca WHERE disimpan_pada < ?", [
-Date.now() - batasUmurMs,
-]);
-}
-// Invalidation manual: kosongkan seluruh cache
-export async function hapusSemuaCache(): Promise<void> {
-const db = await ambilDatabase();
-await db.runAsync("DELETE FROM cache_cuaca");
+  const db = await ambilDatabase();
+  const disimpanPada = Date.now();
+  const kunci = String(kota.id ?? `${kota.latitude}-${kota.longitude}`);
+
+  await db.runAsync(
+    `INSERT OR REPLACE INTO cache_cuaca 
+    (kunci, kota_id, nama_kota, latitude, longitude, cuaca_json, aqi_json, disimpan_pada) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      kunci,
+      kota.id ?? 0,
+      kota.nama,
+      kota.latitude,
+      kota.longitude,
+      JSON.stringify(cuaca),
+      JSON.stringify(kualitasUdara),
+      disimpanPada,
+    ]
+  );
 }
 
-export async function hapusCacheKota(kunci: string): Promise<void> {
+export async function ambilCache(
+  target: KotaUntukCache | number,
+  longitude?: number
+): Promise<CacheCuaca | null> {
   const db = await ambilDatabase();
-  await db.runAsync("DELETE FROM cache_cuaca WHERE kunci = ?", [kunci]);
+
+  let paramCari: any;
+  if (typeof target === "object") {
+    paramCari = target.id ?? target.nama;
+  } else if (longitude !== undefined) {
+    paramCari = `${target}-${longitude}`;
+  } else {
+    paramCari = target;
+  }
+
+  const row = await db.getFirstAsync<any>(
+    "SELECT * FROM cache_cuaca WHERE kota_id = ? OR nama_kota = ? OR kunci = ?",
+    [paramCari, paramCari, String(paramCari)]
+  );
+
+  if (!row) return null;
+
+  try {
+    let cuacaObj = row.cuaca_json;
+    if (typeof cuacaObj === "string") {
+      try {
+        cuacaObj = JSON.parse(cuacaObj);
+      } catch {}
+    }
+    if (typeof cuacaObj === "string") {
+      try {
+        cuacaObj = JSON.parse(cuacaObj);
+      } catch {}
+    }
+
+    let aqiObj = row.aqi_json;
+    if (typeof aqiObj === "string") {
+      try {
+        aqiObj = JSON.parse(aqiObj);
+      } catch {}
+    }
+    if (typeof aqiObj === "string") {
+      try {
+        aqiObj = JSON.parse(aqiObj);
+      } catch {}
+    }
+
+    return {
+      kotaId: row.kota_id ?? row.id,
+      namaKota: row.nama_kota ?? row.nama,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      cuaca: cuacaObj,
+      kualitasUdara: aqiObj,
+      disimpanPada: row.disimpan_pada,
+    };
+  } catch (err) {
+    console.error("Gagal parse cache cuaca:", err);
+    return null;
+  }
+}
+
+export async function bersihkanCacheLama(
+  batasMs: number = BATAS_CACHE_MS
+): Promise<void> {
+  const db = await ambilDatabase();
+  const batasWaktu = Date.now() - batasMs;
+  await db.runAsync("DELETE FROM cache_cuaca WHERE disimpan_pada < ?", [
+    batasWaktu,
+  ]);
+}
+
+export async function daftarKotaTersimpan(): Promise<RingkasanKotaTersimpan[]> {
+  const db = await ambilDatabase();
+  const rows = await db.getAllAsync<any>(
+    "SELECT * FROM cache_cuaca ORDER BY disimpan_pada DESC"
+  );
+  return rows.map((r) => ({
+    id: r.id ?? r.kota_id,
+    kota_id: r.kota_id ?? r.id,
+    nama: r.nama ?? r.nama_kota,
+    nama_kota: r.nama_kota ?? r.nama,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    disimpanPada: r.disimpan_pada,
+    kunci: r.kunci ?? `${r.kota_id}-${r.nama_kota}`,
+  }));
+}
+
+export async function hapusCacheKota(
+  idAtauNama: string | number
+): Promise<void> {
+  const db = await ambilDatabase();
+  await db.runAsync(
+    "DELETE FROM cache_cuaca WHERE kota_id = ? OR nama_kota = ? OR kunci = ?",
+    [idAtauNama, idAtauNama, String(idAtauNama)]
+  );
+}
+
+export async function bersihkanSemuaCache(): Promise<void> {
+  const db = await ambilDatabase();
+  await db.runAsync("DELETE FROM cache_cuaca");
 }
