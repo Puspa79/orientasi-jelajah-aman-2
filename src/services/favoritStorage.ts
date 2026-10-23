@@ -18,3 +18,6 @@ const daftar = await ambilSemuaFavorit();
 const daftarBaru = daftar.filter((k) => k.id !== id);
 await AsyncStorage.setItem(KUNCI_PENYIMPANAN, JSON.stringify(daftarBaru));
 }
+export async function hapusSemuaFavorit(): Promise<void> {
+  await AsyncStorage.removeItem(KUNCI_PENYIMPANAN);
+}
